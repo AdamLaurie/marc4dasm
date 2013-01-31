@@ -355,7 +355,7 @@ while p < len(data) - 2:
 		address= p - (p % 64) + (x - 0x80)
 	# Short subroutine CALL into 'zero page'
 	if x >= 0xC0 and x <= 0xFF:
-		# ROM is 64 even spaced addresses between 0x00 and 0x1F8)
+		# ROM is 64 evenly spaced addresses between 0x00 and 0x1F8)
 		address= (x - 0xC0) * (0x200 / 64)
 	if ROMADD.has_key(address):
 		continue
@@ -469,6 +469,7 @@ while p < len(data) - 2:
 	# Short subroutine CALL into 'zero page'
 	if ins >= 0xC0 and ins <= 0xFF:
 		p += 1
+		# ROM is 64 evenly spaced addresses between 0x00 and 0x1F8)
 		address= (ins - 0xC0) * (0x200 / 64)
 		out= 'SCALL %s' % ROMADD[address]
 		print_with_comment(code_add, out, ins, arg, 'Unconditional short CALL ($%03X)' % address)
