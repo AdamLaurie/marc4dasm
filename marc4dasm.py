@@ -197,6 +197,7 @@ CALL=	{
 	0x43:'CALL',
 	0x44:'CALL',
 	0x45:'CALL',
+	0x46:'CALL',
 	0x47:'CALL',
 	0x48:'CALL',
 	0x49:'CALL',
@@ -266,6 +267,9 @@ ROMADD=	{
 RAMADD=	{
 	}
 
+# Invalid addesses (locations of ARGs)
+INVADD=	[]
+
 # Short branch inside current page: 0x80 - 0xBF (SBRA $XXX)
 # dealt with entirely in later code
 
@@ -321,18 +325,20 @@ label= 0
 rams= 0
 # last two bytes are CRC
 while p < len(data) - 2:
-	x= ord(data[p])
-	p += 1
+	ins= ord(data[p])
 
 	# skip over instructions that have no args or implicit addresses
-	if ZAI.has_key(x) or LIT.has_key(x):
+	if ZAI.has_key(ins) or LIT.has_key(ins):
+		p += 1
 		continue
 
 	# create address labels for everything else...
 
-	if CALL.has_key(x) or BRANCH.has_key(x):
-		address= ord(data[p])
-		address += (x & 0x0f) << 8
+	if CALL.has_key(ins) or BRANCH.has_key(ins):
+		p += 1
+		INVADD.append(p)
+		arg= ord(data[p])
+		address= ((ins & 0x0f) << 8) + arg
 		p += 1
 		if ROMADD.has_key(address):
 			continue
@@ -340,7 +346,9 @@ while p < len(data) - 2:
 		label += 1
 		continue
 
-	if LRAI.has_key(x):
+	if LRAI.has_key(ins):
+		p += 1
+		INVADD.append(p)
 		address= ord(data[p])
 		p += 1
 		if RAMADD.has_key(address):
@@ -350,27 +358,33 @@ while p < len(data) - 2:
 		continue
 
 	# Short branch inside current page
-	if x >= 0x80 and x <= 0xBF:
+	if ins >= 0x80 and ins <= 0xBF:
 		# current page is 64 bytes
-		address= p - (p % 64) + (x - 0x80)
+		address= p - (p % 64) + (ins - 0x80)
+		p += 1
 	# Short subroutine CALL into 'zero page'
-	if x >= 0xC0 and x <= 0xFF:
+	if ins >= 0xC0 and ins <= 0xFF:
 		# ROM is 64 evenly spaced addresses between 0x00 and 0x1F8)
-		address= (x - 0xC0) * (0x200 / 64)
-	if ROMADD.has_key(address):
+		address= (ins - 0xC0) * (0x200 / 64)
+		p += 1
+	if (ins >= 0x80 and ins <= 0xBF) or (ins >= 0xC0 and ins <= 0xFF):
+		if ROMADD.has_key(address):
+			continue
+		ROMADD[address]= 'LABEL_%03X' % label
+		label += 1
 		continue
-	ROMADD[address]= 'LABEL_%03X' % label
-	label += 1
-	continue
+
+	# if we get here it's an illegal instruction!
+	p += 1
 
 # second pass - look for orphan code (chunks of code that is never directly called)
 p= 1
 orphan= 0
 while p < len(data) - 2:
-	x= ord(data[p])
+	ins= ord(data[p])
 	prev= ord(data[p - 1])
 	# previous instruction was UNUSED, EXIT or RTI
-	if x != 0xC1 and (prev == 0xC1 or prev == 0x25 or prev == 0x1D) and not ROMADD.has_key(p):
+	if ins != 0xC1 and (prev == 0xC1 or prev == 0x25 or prev == 0x1D) and not ROMADD.has_key(p):
 		ROMADD[p]= 'ORPHAN_%03X' % orphan
 		orphan += 1
 	p += 1
@@ -395,14 +409,37 @@ for address in sorted(RAMADD.iterkeys()):
 print '\\'
 print '\\'
 print '\\'
+# print warnings for calls to impossible addresses
+invalid_address= []
+for address in INVADD:
+	if ROMADD.has_key(address):
+		print '\\ *** Warning: %s is at invalid address $%03X' % (ROMADD[address], address)
+		invalid_address.append(address)
+print '\\'
 print '\\'
 
 # third pass - disassemble
 p= 0
+if invalid_address:
+	invalid_address.reverse()
+	inv= invalid_address.pop()
+else:
+	inv= 0
 while p < len(data) - 2:
 	ins= ord(data[p])
 	arg= None
 	code_add= p
+
+	# print invalid address warning
+	if inv and p == (inv + 1) and ROMADD.has_key(inv) and not Quiet:
+		print '\\'
+		print '\\    *** invalid %s points here (%04X)' % (ROMADD[inv], inv)
+		print '\\'
+		try:
+			inv= invalid_address.pop()
+		except:
+			inv= 0
+
 
 	# print labels
 	if ROMADD.has_key(p):
