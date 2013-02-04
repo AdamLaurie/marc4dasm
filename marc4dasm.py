@@ -136,10 +136,10 @@ ZAI=	{
 	0x1E:'SWI',
 	0x1F:'OUT',
 	0x20:'TABLE',
-	0x21:'---',
+	0x21:'TABLE',
 	0x22:'>R',
 	0x23:'I',
-	0x24:'---',
+	0x24:'EXIT',
 	0x25:'EXIT',
 	0x26:'SWAP',
 	0x27:'OVER',
@@ -477,7 +477,7 @@ while p < len(data) - 2:
 
 	# code should never reach here!
 	p += 1
-	print_with_comment(code_add, '???', ins, 'UNKNOWN')	
+	print_with_comment(code_add, '???', ins, arg, 'UNKNOWN')	
 
 # check CRC (only we can't because we don't know algorithm!)
 crc0= ord(data[p])
