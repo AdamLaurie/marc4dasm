@@ -516,9 +516,38 @@ while p < len(data) - 2:
 	p += 1
 	print_with_comment(code_add, '???', ins, arg, 'UNKNOWN')	
 
-# check CRC (only we can't because we don't know algorithm!)
-crc0= ord(data[p])
-p += 1
-crc1= ord(data[p])
+# check CRC
+
+# reversed from rom_test.inc
+#
+# work backwards from length - 2
+# create two CRC values: crc from left shifts and crc from right shifts
+#
+# each byte is xor'd with each crc
+# 
+# if no left shift overflow then xor with 0x65
+# if no right shift underflow then xor with 0x95
+#
+# [thanks to Dominic Spill for figuring out the logic was reversed in my initial implementation!]
+
+crc_left= 0x00
+crc_right= 0x00
+p= len(data) - 3
+while p >= 0:
+	# left crc
+	crc_left ^= ord(data[p])
+	if crc_left & 0x80:
+		crc_left <<= 1
+	else:
+		crc_left= (crc_left << 1) ^ 0x65
+	crc_left &= 0xff
+	# right crc
+	crc_right ^= ord(data[p])
+	if crc_right & 0x01:
+		crc_right >>= 1
+	else:
+		crc_right= (crc_right >> 1) ^ 0x95
+	p -= 1
 print
-print 'CRC: %02X %02X' % (crc0, crc1)
+print '\\   original CRC: %02X %02X' % (ord(data[-2:][0]), ord(data[-1:]))
+print '\\ calculated CRC: %02X %02X' % (crc_right, crc_left)
