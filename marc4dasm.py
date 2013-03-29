@@ -322,7 +322,6 @@ infile.close()
 # first pass - create labels
 p= 0
 label= 0
-rams= 0
 # last two bytes are CRC
 while p < len(data) - 2:
 	ins= ord(data[p])
@@ -353,8 +352,7 @@ while p < len(data) - 2:
 		p += 1
 		if RAMADD.has_key(address):
 			continue
-		RAMADD[address]= 'VAR_%02X' % rams
-		rams += 1
+		RAMADD[address]= 'VAR_%02X' % address
 		continue
 
 	# Short branch inside current page
